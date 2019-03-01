@@ -4,38 +4,28 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup, SoupStrainer
 from time import sleep
-import pymysql
-import json
-from tkinter import *
-
+from mysql_con import mysql_con
+from mttkinter import mtTkinter as tk  # use multithread tkinter
 
 # tkinter progress window
-window = Tk()
+window = tk.Tk()
 window.title("Scrape Progress")
-progress = StringVar()
+
+progress = tk.StringVar()
 progress.set("Initializing...")
-label = Label(window, fg="blue", width=30, textvariable=progress)
-label.pack()
+label1 = tk.Label(window, fg="blue", width=30, textvariable=progress)
+label1.pack()
+
+failed = tk.StringVar()
+failed.set("")
+label2 = tk.Label(window, fg="red", width=30, textvariable=failed)
+label2.pack()
 
 
-def mysql_con():
-
-    with open('config.json', 'r') as cf:
-        config = json.load(cf)
-        host = config["config"]["mysql_host"]
-        user = config["config"]["mysql_user"]
-        pw = config["config"]["mysql_password"]
-
-    conn = pymysql.connect(host=host,
-                         user=user,
-                         password=pw,
-                         db='Dev',
-                         charset='utf8mb4',
-                         cursorclass=pymysql.cursors.DictCursor)
-    return conn
 
 
 def get_urls():
+    # Function that loops through retrieved urls and runs review scrape
 
     cn = mysql_con()
     with cn.cursor() as cursor:
@@ -43,14 +33,20 @@ def get_urls():
         cursor.execute(sql)
         urls = [item["url"] for item in cursor.fetchall()]
 
+    urlfails = []
+
     for ix, url in enumerate(urls):
-        get_review_data(str(url))
+        get_review_data(str(url), urlfails)
         status = str(ix + 1) + " of " + str(len(urls)) + " complete"
+
+        # update tkinter window
         progress.set(status)
-        window.update()  # updates tkinter window
+        failed.set(str(len(urlfails)) + (" failures" if len(urlfails) != 1 else " failure"))
+        window.update()
 
 
-def get_review_data(url):
+def get_review_data(url, urlfails):
+    # Function used to scrape review page info for an album review link
 
     # initialize selenium
     driver = webdriver.Safari()
@@ -101,6 +97,8 @@ def get_review_data(url):
 
         print("there was an error with " + str(url))
 
+        urlfails.append(str(url))
+
         sql = """
         UPDATE pitchfork_reviews
         SET get_date = NOW()
@@ -117,44 +115,14 @@ def get_review_data(url):
         driver.quit()
 
 
-def get_links():
-
-    for ix in range(0, 2000):  # force retry certain # times? # 1754 was last page on 2.28.19
-
-        print(ix)
-
-        url = "https://pitchfork.com/reviews/albums/?page=" + str(ix)
-        driver = webdriver.Safari()
-        driver.get(url)
-
-        try:
-            element = WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "review")))
-            sleep(3)  # wait additional (to be safe)
-
-            soup = BeautifulSoup(driver.page_source, features="lxml", parse_only=SoupStrainer('a'))
-
-            cn = mysql_con()  # correct place for this?
-            for link in soup:
-                if link.has_attr('href') \
-                        and str(link).find("/reviews/albums/") > 0\
-                        and str(link).find("?") < 0\
-                        and str(link['href']) != "/reviews/albums/":
-
-                    with cn.cursor() as cursor:  # correct place for this?
-                        sql = "INSERT INTO popular_album_urls (url) VALUES (%s)"
-                        cursor.execute(sql, (str(link['href'])))
-                        cn.commit()
-
-        finally:
-            driver.quit()
 
 
 if __name__ == '__main__':
 
-    window.after(0, get_urls)  # needed to run tkinter alongside program
+    window.after(1, get_urls)  # needed to run tkinter alongside program
     window.mainloop()
 
 
 
 
+# exception in tkinter callback
