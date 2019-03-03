@@ -2,7 +2,11 @@ import pymysql
 import json
 
 
-def mysql_con():
+def mysql_con(db_name):
+    """
+    pass in db name, returns mysql connection
+
+    """
 
     with open('config.json', 'r') as cf:
         config = json.load(cf)
@@ -13,7 +17,7 @@ def mysql_con():
     conn = pymysql.connect(host=host,
                          user=user,
                          password=pw,
-                         db='Dev',
+                         db=db_name,
                          charset='utf8mb4',
                          cursorclass=pymysql.cursors.DictCursor)
     return conn
