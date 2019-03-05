@@ -55,7 +55,10 @@ def get_review_data(url, urlfails):
 
     try:
         # initialize selenium
-        driver = webdriver.Safari()
+#        driver = webdriver.Safari()
+        options = webdriver.ChromeOptions()
+        options.add_argument("headless")
+        driver = webdriver.Chrome(options=options)
         driver.get(url)
 
         # wait for Doc1 to be available (up to 20 sec before error)
