@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup, SoupStrainer
 from time import sleep
 from mysql_con import mysql_con
 from mttkinter import mtTkinter as tk  # use multithread tkinter
-#import sys
+
 
 # define / set up tkinter progress window
 window = tk.Tk()
