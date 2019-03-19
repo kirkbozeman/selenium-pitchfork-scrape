@@ -1,5 +1,6 @@
 """
-Process used to scrape review data from pitchfork.com for use in Natural Language Processing
+Process used to scrape review data from pitchfork.com for use in Natural Language Processing -
+multiprocessing version
 
 """
 
@@ -11,64 +12,29 @@ from selenium.common.exceptions import NoSuchElementException
 from bs4 import BeautifulSoup, SoupStrainer
 from time import sleep
 from mysql_con import mysql_con
-from mttkinter import mtTkinter as tk  # use multithread tkinter
-
-
-# define / set up tkinter progress window
-window = tk.Tk()
-window.title("Scrape Progress")
-
-progress = tk.StringVar()
-progress.set("Initializing...")
-label1 = tk.Label(window, fg="blue", width=30, textvariable=progress)
-label1.pack()
-
-failed = tk.StringVar()
-failed.set("")
-label2 = tk.Label(window, fg="red", width=30, textvariable=failed)
-label2.pack()
+from multiprocessing import Pool, cpu_count
 
 
 def get_urls():
-    """
-        Function that loops through retrieved urls and runs review scrape
-
-    """
 
     cn = mysql_con("Dev")
     with cn.cursor() as cursor:
         sql = f"""SELECT url 
                  FROM pitchfork_reviews 
-                 WHERE error IS NULL OR error IS True"""
+                 LIMIT 10
+                /* WHERE error IS NULL OR error IS True */"""
         cursor.execute(sql)
-        urls = [str(item["url"]) for item in cursor.fetchall()]
 
-    urlfails = []
-
-    for ix, url in enumerate(urls):
-        get_review_data(url, urlfails)
-
-        try:
-            # update tkinter window
-            status = str(ix + 1) + " of " + str(len(urls)) + " complete (" + str(round(100*(ix + 1)/len(urls), 2)) + "%)"
-            progress.set(status)
-            failed.set(str(len(urlfails)) + (" failures" if len(urlfails) != 1 else " failure"))
-            window.update()
-        finally:
-            pass
+    return [item["url"] for item in cursor.fetchall()]
 
 
-def get_review_data(url, urlfails):
-    """
-        Function used to scrape review page info for an album review link
-
-    """
+def get_review_data(url):
 
     try:
         # initialize selenium
 #        driver = webdriver.Safari()
         options = webdriver.ChromeOptions()
-        options.add_argument("headless")
+#        options.add_argument("headless")
         driver = webdriver.Chrome(options=options)
         driver.get(url)
 
@@ -125,7 +91,6 @@ def get_review_data(url, urlfails):
             author = "N/A"
             pass
 
-
         # get album review (roughly 500 chars)
         body = driver.find_element_by_class_name("review-detail")
         review = body.get_attribute("innerHTML")
@@ -155,9 +120,6 @@ def get_review_data(url, urlfails):
     except Exception as e:  # for now, just mark errors and continue
 
         print("there was an error with " + str(url))
-#        print(str(e))
-
-        urlfails.append(str(url))
 
         sql = """
         UPDATE pitchfork_reviews
@@ -170,17 +132,31 @@ def get_review_data(url, urlfails):
             cursor.execute(sql)
             cn.commit()
 
-        window.update()
-
         pass
 
     finally:
 
         driver.quit()
 
+    return 0
+
 
 if __name__ == '__main__':
 
-    window.after(2, get_urls)  # needed to run tkinter alongside program
-#    window.after(2, get_urls(int(sys.argv[1])*5000))  # needed to run tkinter alongside program
-    window.mainloop()
+    try:
+
+        urls = get_urls()
+        print(urls)
+
+        # run multiprocessing
+        pool = Pool(cpu_count())
+        results = [pool.apply_async(get_review_data, (url,)) for url in urls]
+        # note the odd behavior, the x, is necessary to avoid the string being interpreted as a list
+        print([r.get() for r in results])
+
+    except Exception as e:
+        print(e)
+        pass
+
+    finally:
+        pool.close()
