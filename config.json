@@ -1,0 +1,14 @@
+{
+  "config":
+  {
+    "api_key":"H1TDHJHML335QNG5",
+    "mysql_host":"localhost",
+    "mysql_host2":"Kirks-MBP.austin.rr.com",
+    "mysql_user":"dev_user",
+    "mysql_password":"d3Vu53R1",
+    "consumerKey":"licUTuwmj4J16pMy30UFQZofI",
+    "consumerSecret":"LuLn34qrT7iczsga7RvtJnHf1jncDH4oJU70Btzj9LTz8rjA5E",
+    "accessToken":"801871349434187776-mcvC35KftjhlR7doV6l6UQzrAWIFbdz",
+    "accessTokenSecret":"AWClOy005tBXiyxnFUlLVAuDhu269YI5vyh5HSW1mUA2D"
+  }
+}
